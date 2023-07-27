@@ -146,9 +146,52 @@ func TestNonDynamicWellKnown(t *testing.T) {
 	require.Equal(t, out.DurationVal.AsDuration(), time.Second*12)
 }
 
-// TODO - test invalid timestamp format
-// TODO - test Timestamp lower/upper bounds
-// TODO - test invalid duration format
+func TestInvalidTimestamp(t *testing.T) {
+	if testing.Short() {
+		t.Skip("too slow for testing.Short")
+	}
+
+	t.Parallel()
+
+	cases := map[string]struct {
+		hcl       string
+		expectXDS bool
+	}{
+		"invalid": {
+			hcl: `
+				timestamp_val = "Sat Jun 12 2023 14:59:57 GMT+0200"
+			`,
+		},
+		"range error": {
+			hcl: `
+				timestamp_val = "2023-02-27T25:34:56.789Z"
+			`,
+		},
+	}
+
+	for name, tc := range cases {
+		tc := tc
+		var out testproto.NonDynamicWellKnown
+		t.Run(name, func(t *testing.T) {
+
+			err := Unmarshal([]byte(tc.hcl), &out)
+			require.Error(t, err)
+			require.Nil(t, out.TimestampVal)
+			require.ErrorContains(t, err, "error parsing timestamp")
+		})
+	}
+}
+
+func TestInvalidDuration(t *testing.T) {
+	hcl := `
+		duration_val = "abc"
+	`
+	var out testproto.NonDynamicWellKnown
+
+	err := Unmarshal([]byte(hcl), &out)
+	require.ErrorContains(t, err, "error parsing string duration:")
+	require.Nil(t, out.DurationVal)
+}
 
 func TestOneOf(t *testing.T) {
 	hcl1 := `
@@ -218,19 +261,118 @@ func TestAny(t *testing.T) {
 	require.Equal(t, primitives.Uint32Val, uint32(42))
 }
 
+func TestAnyTypeDynamicWellKnown(t *testing.T) {
+	hcl := `
+		any_val {
+			type_url = "hashicorp.consul.internal.protohcl.testproto.DynamicWellKnown"
+		    any_val {
+				type_url = "hashicorp.consul.internal.protohcl.testproto.Primitives"
+				uint32_val = 42
+			}
+		}
+	`
+	var out testproto.DynamicWellKnown
+
+	err := Unmarshal([]byte(hcl), &out)
+	require.NoError(t, err)
+	require.NotNil(t, out.AnyVal)
+	require.Equal(t, out.AnyVal.TypeUrl, "hashicorp.consul.internal.protohcl.testproto.DynamicWellKnown")
+
+	raw, err := anypb.UnmarshalNew(out.AnyVal, proto.UnmarshalOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, raw)
+
+	anyVal, ok := raw.(*testproto.DynamicWellKnown)
+	require.True(t, ok)
+
+	res, err := anypb.UnmarshalNew(anyVal.AnyVal, proto.UnmarshalOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, res)
+
+	primitives, ok := res.(*testproto.Primitives)
+	require.True(t, ok)
+	require.Equal(t, primitives.Uint32Val, uint32(42))
+}
+
+func TestAnyTypeNestedAndCollections(t *testing.T) {
+	hcl := `
+		any_val {
+			type_url = "hashicorp.consul.internal.protohcl.testproto.NestedAndCollections"
+		    primitives {
+				uint32_val = 42
+			}
+		}
+	`
+	var out testproto.DynamicWellKnown
+
+	err := Unmarshal([]byte(hcl), &out)
+	require.NoError(t, err)
+	require.NotNil(t, out.AnyVal)
+	require.Equal(t, out.AnyVal.TypeUrl, "hashicorp.consul.internal.protohcl.testproto.NestedAndCollections")
+
+	raw, err := anypb.UnmarshalNew(out.AnyVal, proto.UnmarshalOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, raw)
+
+	nestedCollections, ok := raw.(*testproto.NestedAndCollections)
+	require.True(t, ok)
+	require.NotNil(t, nestedCollections.Primitives)
+	require.Equal(t, nestedCollections.Primitives.Uint32Val, uint32(42))
+}
+
 func TestStruct(t *testing.T) {
 	hcl := `
 		struct_val = {
+			"null"= null
+			"bool"= true
 			"foo" = "bar"
 			"baz" = 1.234
 			"nested" = {
 				"foo" = 12,
 				"bar" = "something"
 			}
-			"list" = [
+		}
+	`
+
+	var out testproto.DynamicWellKnown
+
+	err := Unmarshal([]byte(hcl), &out)
+	require.NoError(t, err)
+	require.NotNil(t, out.StructVal)
+
+	valMap := out.StructVal.AsMap()
+	jsonVal, err := json.Marshal(valMap)
+	require.NoError(t, err)
+
+	expected := `{
+		"null": null,
+		"bool": true,
+		"foo": "bar",
+		"baz": 1.234,
+		"nested": {
+			"foo": 12,
+			"bar": "something"
+		}
+	}
+	`
+	require.JSONEq(t, expected, string(jsonVal))
+}
+
+func TestStructList(t *testing.T) {
+	hcl := `
+		struct_val = {
+			"list_int" = [
 				1,
 				2,
 				3,
+			]
+			"list_string": [
+				"abc",
+				"def"
+			]
+			"list_bool": [
+				true,
+				false
 			]
 			"list_maps" = [
 				{
@@ -239,6 +381,13 @@ func TestStruct(t *testing.T) {
 				{
 					"hoist" = "the colors"
 				}
+			]
+			"list_list" = [
+				[
+					"hello",
+					"world",
+					null
+				]
 			]
 		}
 	`
@@ -254,16 +403,18 @@ func TestStruct(t *testing.T) {
 	require.NoError(t, err)
 
 	expected := `{
-		"foo": "bar",
-		"baz": 1.234,
-		"nested": {
-			"foo": 12,
-			"bar": "something"
-		},
-		"list": [
+		"list_int": [
 			1,
 			2,
 			3
+		],
+		"list_string": [
+			"abc",
+			"def"
+		],
+		"list_bool": [
+			true,
+			false
 		],
 		"list_maps": [
 			{
@@ -272,6 +423,13 @@ func TestStruct(t *testing.T) {
 			{
 				"hoist": "the colors"
 			}
+		],
+		"list_list": [
+			[
+				"hello",
+				"world",
+				null
+			]
 		]
 	}
 	`
