@@ -32,11 +32,11 @@ func RegisterProxyStateTemplate(r resource.Registry) {
 			},
 			Write: func(authorizer acl.Authorizer, p *pbresource.Resource) error {
 				// Require operator:write only for "break-glass" scenarios as this resource should be mostly
-				// be managed by the mesh controller.
+				// managed by the mesh controller.
 				return authorizer.ToAllowAuthorizer().OperatorWriteAllowed(resource.AuthorizerContext(p.Id.Tenancy))
 			},
 			List: func(authorizer acl.Authorizer, tenancy *pbresource.Tenancy) error {
-				// No-op List permission as we want to default to filtering resource resources
+				// No-op List permission as we want to default to filtering resources
 				// from the list using the Read enforcement.
 				return nil
 			},
