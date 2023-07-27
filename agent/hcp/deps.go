@@ -6,9 +6,10 @@ package hcp
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/armon/go-metrics"
+
+	"github.com/hashicorp/consul/agent/hcp/client"
 	hcpclient "github.com/hashicorp/consul/agent/hcp/client"
 	"github.com/hashicorp/consul/agent/hcp/config"
 	"github.com/hashicorp/consul/agent/hcp/scada"
@@ -18,7 +19,7 @@ import (
 
 // Deps contains the interfaces that the rest of Consul core depends on for HCP integration.
 type Deps struct {
-	Client   hcpclient.Client
+	Client   client.Client
 	Provider scada.Provider
 	Sink     metrics.MetricSink
 }
@@ -27,7 +28,7 @@ func NewDeps(cfg config.CloudConfig, logger hclog.Logger) (Deps, error) {
 	ctx := context.Background()
 	ctx = hclog.WithContext(ctx, logger)
 
-	client, err := hcpclient.NewClient(cfg)
+	client, err := client.NewClient(cfg)
 	if err != nil {
 		return Deps{}, fmt.Errorf("failed to init client: %w", err)
 	}
@@ -37,7 +38,7 @@ func NewDeps(cfg config.CloudConfig, logger hclog.Logger) (Deps, error) {
 		return Deps{}, fmt.Errorf("failed to init scada: %w", err)
 	}
 
-	metricsClient, err := hcpclient.NewMetricsClient(ctx, &cfg)
+	metricsClient, err := client.NewMetricsClient(ctx, &cfg)
 	if err != nil {
 		logger.Error("failed to init metrics client", "error", err)
 		return Deps{}, fmt.Errorf("failed to init metrics client: %w", err)
@@ -65,22 +66,8 @@ func sink(
 	metricsClient telemetry.MetricsClient,
 ) (metrics.MetricSink, error) {
 	logger := hclog.FromContext(ctx).Named("sink")
-	reqCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
 
-	telemetryCfg, err := hcpClient.FetchTelemetryConfig(reqCtx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch telemetry config: %w", err)
-	}
-
-	if !telemetryCfg.MetricsEnabled() {
-		return nil, nil
-	}
-
-	cfgProvider, err := NewHCPProvider(ctx, hcpClient, telemetryCfg)
-	if err != nil {
-		return nil, fmt.Errorf("failed to init config provider: %w", err)
-	}
+	cfgProvider := NewHCPProvider(ctx, hcpClient)
 
 	reader := telemetry.NewOTELReader(metricsClient, cfgProvider, telemetry.DefaultExportInterval)
 	sinkOpts := &telemetry.OTELSinkOpts{

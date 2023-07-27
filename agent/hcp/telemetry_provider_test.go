@@ -2,6 +2,7 @@ package hcp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"regexp"
@@ -38,41 +39,37 @@ type testConfig struct {
 }
 
 func TestNewTelemetryConfigProvider(t *testing.T) {
-	t.Parallel()
 	for name, tc := range map[string]struct {
-		testInputs *testConfig
-		wantErr    string
+		inputs   *testConfig
+		mock     func(*client.MockClient)
+		emptyCfg *dynamicConfig
 	}{
-		"success": {
-			testInputs: &testConfig{
-				refreshInterval: 1 * time.Second,
+		"initWithoutFirstClientFetch": {
+			mock: func(m *client.MockClient) {
+				m.EXPECT().FetchTelemetryConfig(mock.Anything).Return(nil, errors.New("failed to fetch"))
+			},
+			emptyCfg: &dynamicConfig{
+				Labels: map[string]string{},
 			},
 		},
-		"failsWithInvalidRefreshInterval": {
-			testInputs: &testConfig{
-				refreshInterval: 0 * time.Second,
+		"initWithFirstClientFetch": {
+			mock: func(m *client.MockClient) {
+				m.EXPECT().FetchTelemetryConfig(mock.Anything).Return(nil, errors.New("failed to fetch"))
 			},
-			wantErr: "invalid refresh interval",
+			emptyCfg: &dynamicConfig{
+				Labels: map[string]string{},
+			},
 		},
 	} {
-		tc := tc
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			testCfg, err := testTelemetryCfg(tc.testInputs)
-			require.NoError(t, err)
+			mockClient := client.NewMockClient(t)
+			tc.mock(mockClient)
 
-			cfgProvider, err := NewHCPProvider(ctx, client.NewMockClient(t), testCfg)
-			if tc.wantErr != "" {
-				require.Error(t, err)
-				require.Contains(t, err.Error(), tc.wantErr)
-				require.Nil(t, cfgProvider)
-				return
-			}
-			require.NotNil(t, cfgProvider)
+			cfgProvider := NewHCPProvider(ctx, mockClient)
+			require.Equal(t, cfgProvider.cfg, expectedCfg)
 		})
 	}
 }
