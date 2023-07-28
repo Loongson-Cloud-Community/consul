@@ -8,13 +8,12 @@ import (
 	"fmt"
 
 	"github.com/armon/go-metrics"
+	"github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/consul/agent/hcp/client"
-	hcpclient "github.com/hashicorp/consul/agent/hcp/client"
 	"github.com/hashicorp/consul/agent/hcp/config"
 	"github.com/hashicorp/consul/agent/hcp/scada"
 	"github.com/hashicorp/consul/agent/hcp/telemetry"
-	"github.com/hashicorp/go-hclog"
 )
 
 // Deps contains the interfaces that the rest of Consul core depends on for HCP integration.
@@ -28,7 +27,7 @@ func NewDeps(cfg config.CloudConfig, logger hclog.Logger) (Deps, error) {
 	ctx := context.Background()
 	ctx = hclog.WithContext(ctx, logger)
 
-	client, err := client.NewClient(cfg)
+	hcpClient, err := client.NewClient(cfg)
 	if err != nil {
 		return Deps{}, fmt.Errorf("failed to init client: %w", err)
 	}
@@ -44,29 +43,26 @@ func NewDeps(cfg config.CloudConfig, logger hclog.Logger) (Deps, error) {
 		return Deps{}, fmt.Errorf("failed to init metrics client: %w", err)
 	}
 
-	sink, err := sink(ctx, client, metricsClient)
+	sink, err := sink(ctx, hcpClient, metricsClient)
 	if err != nil {
 		// Do not prevent server start if sink init fails, only log error.
 		logger.Error("failed to init sink", "error", err)
 	}
 
 	return Deps{
-		Client:   client,
+		Client:   hcpClient,
 		Provider: provider,
 		Sink:     sink,
 	}, nil
 }
 
 // sink initializes an OTELSink which forwards Consul metrics to HCP.
-// The sink is only initialized if the server is registered with the management plane (CCM).
 // This step should not block server initialization, errors are returned, only to be logged.
 func sink(
 	ctx context.Context,
-	hcpClient hcpclient.Client,
+	hcpClient client.Client,
 	metricsClient telemetry.MetricsClient,
 ) (metrics.MetricSink, error) {
-	logger := hclog.FromContext(ctx).Named("sink")
-
 	cfgProvider := NewHCPProvider(ctx, hcpClient)
 
 	reader := telemetry.NewOTELReader(metricsClient, cfgProvider, telemetry.DefaultExportInterval)
@@ -75,12 +71,5 @@ func sink(
 		ConfigProvider: cfgProvider,
 	}
 
-	sink, err := telemetry.NewOTELSink(ctx, sinkOpts)
-	if err != nil {
-		return nil, fmt.Errorf("failed create OTELSink: %w", err)
-	}
-
-	logger.Debug("initialized HCP metrics sink")
-
-	return sink, nil
+	return telemetry.NewOTELSink(ctx, sinkOpts)
 }

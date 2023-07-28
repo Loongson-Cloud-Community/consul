@@ -21,6 +21,7 @@ type MetricsClient interface {
 // EndpointProvider exposes the GetEndpoint() interface method to fetch the endpoint.
 // This abstraction layer offers flexibility, in particular for dynamic configuration or changes to the endpoint.
 type EndpointProvider interface {
+	Enabler
 	GetEndpoint() *url.URL
 }
 

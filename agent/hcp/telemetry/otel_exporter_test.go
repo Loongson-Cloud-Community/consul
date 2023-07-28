@@ -82,8 +82,9 @@ func TestExport(t *testing.T) {
 			provider: &mockEndpointProvider{},
 		},
 		"earlyReturnWithoutScopeMetrics": {
-			client:  &mockMetricsClient{},
-			metrics: mutateMetrics(nil),
+			client:   &mockMetricsClient{},
+			metrics:  mutateMetrics(nil),
+			provider: &mockEndpointProvider{enabled: true},
 		},
 		"earlyReturnWithoutMetrics": {
 			client: &mockMetricsClient{},
@@ -91,6 +92,7 @@ func TestExport(t *testing.T) {
 				{Metrics: []metricdata.Metrics{}},
 			},
 			),
+			provider: &mockEndpointProvider{enabled: true},
 		},
 		"errorWithExportFailure": {
 			client: &mockMetricsClient{
@@ -107,7 +109,8 @@ func TestExport(t *testing.T) {
 				},
 			},
 			),
-			wantErr: "failed to export metrics",
+			provider: &mockEndpointProvider{enabled: true},
+			wantErr:  "failed to export metrics",
 		},
 	} {
 		test := test

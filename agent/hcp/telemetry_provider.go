@@ -73,7 +73,9 @@ func NewHCPProvider(ctx context.Context, hcpClient client.Client) *hcpProviderIm
 	ticker := time.NewTicker(defaultTelemetryConfigRefreshInterval)
 	t := &hcpProviderImpl{
 		cfg: &dynamicConfig{
-			Labels: make(map[string]string),
+			Labels:          make(map[string]string),
+			Filters:         defaultTelemetryConfigFilters,
+			RefreshInterval: defaultTelemetryConfigRefreshInterval,
 		},
 		hcpClient: hcpClient,
 		ticker:    ticker,
@@ -83,6 +85,7 @@ func NewHCPProvider(ctx context.Context, hcpClient client.Client) *hcpProviderIm
 	newCfg, _ := t.checkUpdate(ctx)
 	if newCfg != nil {
 		t.cfg = newCfg
+		ticker.Reset(newCfg.RefreshInterval)
 	}
 
 	go t.run(ctx, ticker.C)
