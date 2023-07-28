@@ -4,9 +4,11 @@
 package xds
 
 import (
+	"k8s.io/utils/pointer"
 	"path/filepath"
 	"sort"
 	"testing"
+	"time"
 
 	envoy_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	envoy_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
@@ -564,6 +566,16 @@ func getAPIGatewayGoldenTestCases(t *testing.T) []goldenTestCase {
 										},
 										Remove: []string{"X-Header-Remove"},
 									},
+								},
+								//TODO @sarahalsmiller this ux might change prerelease
+								Retry: &structs.Retry{
+									NumRetries:            pointer.Uint32(3),
+									RetryOnStatusCodes:    &[]uint32{500},
+									RetryOnConnectFailure: pointer.Bool(true),
+								},
+								Timeout: &structs.Timeout{
+									IdleTimeout:    pointer.Duration(time.Second * 30),
+									RequestTimeout: pointer.Duration(time.Second * 30),
 								},
 							},
 							Services: []structs.HTTPService{{
