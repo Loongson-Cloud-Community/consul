@@ -161,9 +161,31 @@ func httpRouteToDiscoveryChain(route structs.HTTPRouteConfigEntry) (*structs.Ser
 			}
 		}
 
-		//TODO @sarahalsmiller add in other config changes consumption?
-		if rule.Filters.TrafficFilter != nil {
-			destination.NumRetries = (uint32)(rule.Filters.TrafficFilter.NumRetries)
+		//TODO @sarahalsmiller this might not be the correct place for this to happen
+		if rule.Filters.Retry != nil {
+			if rule.Filters.Retry.NumRetries != nil {
+				destination.NumRetries = *rule.Filters.Retry.NumRetries
+			}
+			if rule.Filters.Retry.RetryOnConnectFailure != nil {
+				destination.RetryOnConnectFailure = *rule.Filters.Retry.RetryOnConnectFailure
+			}
+
+			if rule.Filters.Retry.RetryOn != nil {
+				destination.RetryOn = *rule.Filters.Retry.RetryOn
+			}
+
+			if rule.Filters.Retry.RetryOnStatusCodes != nil {
+				destination.RetryOnStatusCodes = *rule.Filters.Retry.RetryOnStatusCodes
+			}
+		}
+
+		if rule.Filters.Timeout != nil {
+			if rule.Filters.Timeout.IdleTimeout != nil {
+				destination.IdleTimeout = *rule.Filters.Timeout.IdleTimeout
+			}
+			if rule.Filters.Timeout.RequestTimeout != nil {
+				destination.RequestTimeout = *rule.Filters.Timeout.RequestTimeout
+			}
 		}
 
 		// for each match rule a ServiceRoute is created for the service-router

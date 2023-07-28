@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/miekg/dns"
 
@@ -417,9 +418,11 @@ type HTTPQueryMatch struct {
 // HTTPFilters specifies a list of filters used to modify a request
 // before it is routed to an upstream.
 type HTTPFilters struct {
-	Headers       []HTTPHeaderFilter
-	URLRewrite    *URLRewrite
-	TrafficFilter *TrafficFilter
+	Headers    []HTTPHeaderFilter
+	URLRewrite *URLRewrite
+	//TODO @sarahalsmiller this name scheme is likely to change before the release
+	Retry   *Retry
+	Timeout *Timeout
 }
 
 // HTTPHeaderFilter specifies how HTTP headers should be modified.
@@ -433,8 +436,16 @@ type URLRewrite struct {
 	Path string
 }
 
-type TrafficFilter struct {
-	NumRetries int32
+type Retry struct {
+	NumRetries            *uint32
+	RetryOn               *[]string
+	RetryOnStatusCodes    *[]uint32
+	RetryOnConnectFailure *bool
+}
+
+type Timeout struct {
+	RequestTimeout *time.Duration
+	IdleTimeout    *time.Duration
 }
 
 // HTTPRouteRule specifies the routing rules used to determine what upstream

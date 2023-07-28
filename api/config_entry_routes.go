@@ -3,6 +3,8 @@
 
 package api
 
+import "time"
+
 // TCPRouteConfigEntry -- TODO stub
 type TCPRouteConfigEntry struct {
 	// Kind of the config entry. This should be set to api.TCPRoute.
@@ -197,8 +199,9 @@ type HTTPQueryMatch struct {
 type HTTPFilters struct {
 	Headers    []HTTPHeaderFilter
 	URLRewrite *URLRewrite
-	//TODO figure out what the UX should be here
-	TrafficFilter *TrafficFilter
+	//TODO @sarahalsmiller this name scheme is likely to change before the release
+	Retry   *Retry
+	Timeout *Timeout
 }
 
 // HTTPHeaderFilter specifies how HTTP headers should be modified.
@@ -212,8 +215,16 @@ type URLRewrite struct {
 	Path string
 }
 
-type TrafficFilter struct {
-	NumRetries int32
+type Retry struct {
+	NumRetries            *uint32
+	RetryOn               *[]string
+	RetryOnStatusCodes    *[]uint32
+	RetryOnConnectFailure *bool
+}
+
+type Timeout struct {
+	RequestTimeout *time.Duration
+	IdleTimeout    *time.Duration
 }
 
 // HTTPRouteRule specifies the routing rules used to determine what upstream
