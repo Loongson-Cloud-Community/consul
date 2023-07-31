@@ -25,6 +25,9 @@ import (
 	"runtime"
 	"sync"
 	"time"
+
+	"github.com/hashicorp/consul/sdk/testutil/retry"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -36,7 +39,7 @@ const (
 
 	// attempts is how often we try to allocate a port block
 	// before giving up.
-	attempts = 10
+	attempts = 100
 )
 
 var (
@@ -261,17 +264,21 @@ func adjustMaxBlocks() (int, error) {
 // implemented as a TCP listener which is bound to the firstPort and which will
 // be automatically released when the application terminates.
 func alloc() (int, net.Listener) {
+	var err error
+	// note: can't use retry here because we don't have a Failer (testing.T)
 	for i := 0; i < attempts; i++ {
 		block := int(seededRand.Int31n(int32(effectiveMaxBlocks)))
 		firstPort := lowPort + block*blockSize
-		ln, err := net.ListenTCP("tcp", tcpAddr("127.0.0.1", firstPort))
+		var ln *net.TCPListener
+		ln, err = net.ListenTCP("tcp", tcpAddr("127.0.0.1", firstPort))
 		if err != nil {
+			time.Sleep(1 * time.Second)
 			continue
 		}
 		// logf("DEBUG", "allocated port block %d (%d-%d)", block, firstPort, firstPort+blockSize-1)
 		return firstPort, ln
 	}
-	panic("freeport: cannot allocate port block")
+	panic("freeport: cannot allocate port block: " + err.Error())
 }
 
 // MustTake is the same as Take except it panics on error.
@@ -418,25 +425,50 @@ type TestingT interface {
 	Helper()
 	Fatalf(format string, args ...interface{})
 	Name() string
+	FailNow()
+	Log(args ...interface{})
 }
 
-// GetN returns n free ports from the reserved port block, and returns the
-// ports to the pool when the test ends. See Take for more details.
-func GetN(t TestingT, n int) []int {
+func mayGetN(t TestingT, n int) ([]int, error) {
 	t.Helper()
 	ports, err := Take(n)
 	if err != nil {
-		t.Fatalf("failed to take %v ports: %w", n, err)
+		return nil, err
 	}
+	t.Cleanup(func() {
+		Return(ports)
+		logf("DEBUG", "Test %q returned ports %v", t.Name(), ports)
+	})
 	logf("DEBUG", "Test %q took ports %v", t.Name(), ports)
 	mu.Lock()
 	for _, p := range ports {
 		portLastUser[p] = t.Name()
 	}
 	mu.Unlock()
-	t.Cleanup(func() {
-		Return(ports)
-		logf("DEBUG", "Test %q returned ports %v", t.Name(), ports)
+	return ports, nil
+}
+
+// GetN returns n free ports from the reserved port block, and returns the
+// ports to the pool when the test ends. See Take for more details.
+//
+// TODO: rename to MustGetN
+func GetN(t TestingT, n int) []int {
+	t.Helper()
+	ports, err := mayGetN(t, n)
+	if err != nil {
+		t.Fatalf("failed to take %v ports: %w", n, err)
+	}
+	return ports
+}
+
+// RetryMustGetN is like MustGetN, but it will retry using retryer
+func RetryMustGetN(t TestingT, retryer retry.Retryer, n int) []int {
+	t.Helper()
+	var ports []int
+	retry.RunWith(retryer, t, func(r *retry.R) {
+		var err error
+		ports, err = mayGetN(t, n)
+		require.NoError(r, err)
 	})
 	return ports
 }
