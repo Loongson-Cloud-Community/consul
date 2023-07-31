@@ -568,12 +568,12 @@ func getAPIGatewayGoldenTestCases(t *testing.T) []goldenTestCase {
 									},
 								},
 								//TODO @sarahalsmiller this ux might change prerelease
-								Retry: &structs.Retry{
+								Retry: &structs.HTTPRouteRetry{
 									NumRetries:            pointer.Uint32(3),
 									RetryOnStatusCodes:    &[]uint32{500},
 									RetryOnConnectFailure: pointer.Bool(true),
 								},
-								Timeout: &structs.Timeout{
+								Timeout: &structs.HTTPRouteTimeout{
 									IdleTimeout:    pointer.Duration(time.Second * 30),
 									RequestTimeout: pointer.Duration(time.Second * 30),
 								},

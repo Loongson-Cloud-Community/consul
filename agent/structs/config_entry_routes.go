@@ -421,8 +421,8 @@ type HTTPFilters struct {
 	Headers    []HTTPHeaderFilter
 	URLRewrite *URLRewrite
 	//TODO @sarahalsmiller this name scheme is likely to change before the release
-	Retry   *Retry
-	Timeout *Timeout
+	Retry   *HTTPRouteRetry
+	Timeout *HTTPRouteTimeout
 }
 
 // HTTPHeaderFilter specifies how HTTP headers should be modified.
@@ -436,14 +436,14 @@ type URLRewrite struct {
 	Path string
 }
 
-type Retry struct {
+type HTTPRouteRetry struct {
 	NumRetries            *uint32
 	RetryOn               *[]string
 	RetryOnStatusCodes    *[]uint32
 	RetryOnConnectFailure *bool
 }
 
-type Timeout struct {
+type HTTPRouteTimeout struct {
 	RequestTimeout *time.Duration
 	IdleTimeout    *time.Duration
 }
