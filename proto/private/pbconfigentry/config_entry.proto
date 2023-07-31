@@ -903,9 +903,9 @@ message URLRewrite {
 // output=config_entry.gen.go
 // name=Structs
 message HTTPRouteRetry {
-    int32 NumRetries = 1;
+    uint32 NumRetries = 1;
     repeated string RetryOn = 2;
-    repeated int32 RetryOnStatusCodes = 3;
+    repeated uint32 RetryOnStatusCodes = 3;
     bool RetryOnConnectFailure = 4;
 }
 

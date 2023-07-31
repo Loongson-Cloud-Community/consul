@@ -608,12 +608,7 @@ func HTTPRouteRetryToStructs(s *HTTPRouteRetry, t *structs.HTTPRouteRetry) {
 	}
 	t.NumRetries = &s.NumRetries
 	t.RetryOn = s.RetryOn
-	{
-		t.RetryOnStatusCodes = make([]uint32, len(s.RetryOnStatusCodes))
-		for i := range s.RetryOnStatusCodes {
-			t.RetryOnStatusCodes[i] = s.RetryOnStatusCodes[i]
-		}
-	}
+	t.RetryOnStatusCodes = s.RetryOnStatusCodes
 	t.RetryOnConnectFailure = &s.RetryOnConnectFailure
 }
 func HTTPRouteRetryFromStructs(t *structs.HTTPRouteRetry, s *HTTPRouteRetry) {
@@ -622,12 +617,7 @@ func HTTPRouteRetryFromStructs(t *structs.HTTPRouteRetry, s *HTTPRouteRetry) {
 	}
 	s.NumRetries = *t.NumRetries
 	s.RetryOn = t.RetryOn
-	{
-		s.RetryOnStatusCodes = make([]int32, len(t.RetryOnStatusCodes))
-		for i := range t.RetryOnStatusCodes {
-			s.RetryOnStatusCodes[i] = t.RetryOnStatusCodes[i]
-		}
-	}
+	s.RetryOnStatusCodes = t.RetryOnStatusCodes
 	s.RetryOnConnectFailure = *t.RetryOnConnectFailure
 }
 func HTTPRouteRuleToStructs(s *HTTPRouteRule, t *structs.HTTPRouteRule) {
