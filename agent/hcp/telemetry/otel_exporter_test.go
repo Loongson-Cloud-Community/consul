@@ -25,15 +25,17 @@ type mockMetricsClient struct {
 	exportErr error
 }
 
-func (m *mockMetricsClient) ExportMetrics(ctx context.Context, protoMetrics *metricpb.ResourceMetrics, endpoint string) error {
+func (m *mockMetricsClient) ExportMetrics(ctx context.Context, protoMetrics *metricpb.ResourceMetrics, endpoint *url.URL) error {
 	return m.exportErr
 }
 
 type mockEndpointProvider struct {
 	endpoint *url.URL
+	enabled  bool
 }
 
 func (m *mockEndpointProvider) GetEndpoint() *url.URL { return m.endpoint }
+func (m *mockEndpointProvider) Enabled() bool         { return m.enabled }
 
 func TestTemporality(t *testing.T) {
 	t.Parallel()

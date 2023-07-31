@@ -9,7 +9,6 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-hclog"
-	"github.com/mitchellh/hashstructure/v2"
 
 	"github.com/hashicorp/consul/agent/hcp/client"
 	"github.com/hashicorp/consul/agent/hcp/telemetry"
@@ -21,7 +20,6 @@ var (
 	// internalMetricRefreshSuccess is a metric to monitor refresh successes.
 	internalMetricRefreshSuccess          []string = []string{"hcp", "telemetry_config_provider", "refresh", "success"}
 	defaultTelemetryConfigRefreshInterval          = 1 * time.Minute
-	defaultTelemetryConfigFilters                  = regexp.MustCompile(".+")
 )
 
 // Ensure hcpProviderImpl implements telemetry provider interfaces.
@@ -53,42 +51,26 @@ type dynamicConfig struct {
 	RefreshInterval time.Duration
 }
 
-// equals returns true if two dynamicConfig objects are equal.
-func (d *dynamicConfig) equals(newCfg *dynamicConfig) (bool, error) {
-	currHash, err := hashstructure.Hash(*d, hashstructure.FormatV2, nil)
-	if err != nil {
-		return false, err
-	}
-
-	newHash, err := hashstructure.Hash(*newCfg, hashstructure.FormatV2, nil)
-	if err != nil {
-		return false, err
-	}
-
-	return currHash == newHash, err
-}
-
 // NewHCPProvider initializes and starts a HCP Telemetry provider with provided params.
 func NewHCPProvider(ctx context.Context, hcpClient client.Client) *hcpProviderImpl {
-	ticker := time.NewTicker(defaultTelemetryConfigRefreshInterval)
 	t := &hcpProviderImpl{
+		// Initialize with default config values.
 		cfg: &dynamicConfig{
-			Labels:          make(map[string]string),
-			Filters:         defaultTelemetryConfigFilters,
+			Labels:          map[string]string{},
+			Filters:         client.DefaultMetricFilters,
 			RefreshInterval: defaultTelemetryConfigRefreshInterval,
+			Endpoint:        nil,
+			Enabled:         false,
 		},
 		hcpClient: hcpClient,
-		ticker:    ticker,
 	}
 
 	// Try to initialize the config once before running periodic fetcher.
-	newCfg, _ := t.checkUpdate(ctx)
-	if newCfg != nil {
+	if newCfg := t.getUpdate(ctx); newCfg != nil {
 		t.cfg = newCfg
-		ticker.Reset(newCfg.RefreshInterval)
 	}
 
-	go t.run(ctx, ticker.C)
+	go t.run(ctx, t.cfg.RefreshInterval)
 
 	return t
 }
