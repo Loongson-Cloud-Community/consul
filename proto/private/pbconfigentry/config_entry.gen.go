@@ -369,6 +369,16 @@ func HTTPFiltersToStructs(s *HTTPFilters, t *structs.HTTPFilters) {
 		URLRewriteToStructs(s.URLRewrite, &x)
 		t.URLRewrite = &x
 	}
+	if s.Retry != nil {
+		var x structs.HTTPRouteRetry
+		HTTPRouteRetryToStructs(s.Retry, &x)
+		t.Retry = &x
+	}
+	if s.Timeout != nil {
+		var x structs.HTTPRouteTimeout
+		HTTPRouteTimeoutToStructs(s.Timeout, &x)
+		t.Timeout = &x
+	}
 }
 func HTTPFiltersFromStructs(t *structs.HTTPFilters, s *HTTPFilters) {
 	if s == nil {
@@ -388,6 +398,16 @@ func HTTPFiltersFromStructs(t *structs.HTTPFilters, s *HTTPFilters) {
 		var x URLRewrite
 		URLRewriteFromStructs(t.URLRewrite, &x)
 		s.URLRewrite = &x
+	}
+	if t.Retry != nil {
+		var x HTTPRouteRetry
+		HTTPRouteRetryFromStructs(t.Retry, &x)
+		s.Retry = &x
+	}
+	if t.Timeout != nil {
+		var x HTTPRouteTimeout
+		HTTPRouteTimeoutFromStructs(t.Timeout, &x)
+		s.Timeout = &x
 	}
 }
 func HTTPHeaderFilterToStructs(s *HTTPHeaderFilter, t *structs.HTTPHeaderFilter) {
@@ -582,6 +602,34 @@ func HTTPRouteFromStructs(t *structs.HTTPRouteConfigEntry, s *HTTPRoute) {
 		s.Status = &x
 	}
 }
+func HTTPRouteRetryToStructs(s *HTTPRouteRetry, t *structs.HTTPRouteRetry) {
+	if s == nil {
+		return
+	}
+	t.NumRetries = &s.NumRetries
+	t.RetryOn = s.RetryOn
+	{
+		t.RetryOnStatusCodes = make([]uint32, len(s.RetryOnStatusCodes))
+		for i := range s.RetryOnStatusCodes {
+			t.RetryOnStatusCodes[i] = s.RetryOnStatusCodes[i]
+		}
+	}
+	t.RetryOnConnectFailure = &s.RetryOnConnectFailure
+}
+func HTTPRouteRetryFromStructs(t *structs.HTTPRouteRetry, s *HTTPRouteRetry) {
+	if s == nil {
+		return
+	}
+	s.NumRetries = *t.NumRetries
+	s.RetryOn = t.RetryOn
+	{
+		s.RetryOnStatusCodes = make([]int32, len(t.RetryOnStatusCodes))
+		for i := range t.RetryOnStatusCodes {
+			s.RetryOnStatusCodes[i] = t.RetryOnStatusCodes[i]
+		}
+	}
+	s.RetryOnConnectFailure = *t.RetryOnConnectFailure
+}
 func HTTPRouteRuleToStructs(s *HTTPRouteRule, t *structs.HTTPRouteRule) {
 	if s == nil {
 		return
@@ -635,6 +683,20 @@ func HTTPRouteRuleFromStructs(t *structs.HTTPRouteRule, s *HTTPRouteRule) {
 			}
 		}
 	}
+}
+func HTTPRouteTimeoutToStructs(s *HTTPRouteTimeout, t *structs.HTTPRouteTimeout) {
+	if s == nil {
+		return
+	}
+	t.RequestTimeout = structs.DurationFromProto(s.RequestTimeout)
+	t.IdleTimeout = structs.DurationFromProto(s.IdleTimeout)
+}
+func HTTPRouteTimeoutFromStructs(t *structs.HTTPRouteTimeout, s *HTTPRouteTimeout) {
+	if s == nil {
+		return
+	}
+	s.RequestTimeout = structs.DurationToProto(t.RequestTimeout)
+	s.IdleTimeout = structs.DurationToProto(t.IdleTimeout)
 }
 func HTTPServiceToStructs(s *HTTPService, t *structs.HTTPService) {
 	if s == nil {

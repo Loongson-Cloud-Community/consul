@@ -438,8 +438,8 @@ type URLRewrite struct {
 
 type HTTPRouteRetry struct {
 	NumRetries            *uint32
-	RetryOn               *[]string
-	RetryOnStatusCodes    *[]uint32
+	RetryOn               []string
+	RetryOnStatusCodes    []uint32
 	RetryOnConnectFailure *bool
 }
 

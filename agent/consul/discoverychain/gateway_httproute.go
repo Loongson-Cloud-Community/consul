@@ -170,12 +170,12 @@ func httpRouteToDiscoveryChain(route structs.HTTPRouteConfigEntry) (*structs.Ser
 				destination.RetryOnConnectFailure = *rule.Filters.Retry.RetryOnConnectFailure
 			}
 
-			if rule.Filters.Retry.RetryOn != nil {
-				destination.RetryOn = *rule.Filters.Retry.RetryOn
+			if len(rule.Filters.Retry.RetryOn) > 0 {
+				destination.RetryOn = rule.Filters.Retry.RetryOn
 			}
 
-			if rule.Filters.Retry.RetryOnStatusCodes != nil {
-				destination.RetryOnStatusCodes = *rule.Filters.Retry.RetryOnStatusCodes
+			if len(rule.Filters.Retry.RetryOnStatusCodes) > 0 {
+				destination.RetryOnStatusCodes = rule.Filters.Retry.RetryOnStatusCodes
 			}
 		}
 
